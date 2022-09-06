@@ -43,7 +43,7 @@ class Paginator
   # supervise_query: generate a set of 'chunks', then put them
   # together into a single .csv file.  Returns [path, n] where path is
   # the path to the .csv file and n is an approximation to the number
-  # of rows in the .csv file.  (-1 means error, 0 means no rows, >0 
+  # of rows in the .csv file.  (-1 means error, 0 means no rows, >0
   # means usually at least 1 row)
 
   # A chunk (or 'part') is the result set of a single cypher query.
@@ -58,42 +58,34 @@ class Paginator
   # exists the query is not repeated - the results from the previous
   # run are used directly without verification.
 
-  # Returns the name of the .csv file (or nil on error), if any, and the number of 
+  # Returns the name of the .csv file (or nil on error), if any, and the number of
   # rows written (or a larger number, if cached files are used).
 
   def supervise_query(query, headings, chunksize, csv_path,
                       skipping: true,
                       keep_chunks: false,
                       create_empty: true)
-    if File.exist?(csv_path)
-      #STDERR.puts "Using previously generated file #{csv_path}"
-      [csv_path, 1]
-    else
-      # Create a directory csv_path.chunks to hold the chunks
-      chunks_dir = csv_path + ".chunks"
-      if Dir.exist?(chunks_dir) && Dir.entries(chunks_dir).length > 2
-        STDERR.puts "There are cached results in #{chunks_dir}"
-      end
-      begin
-        # count = total number of rows
-        chunks, count = get_query_chunks(query, headings, chunksize, csv_path, skipping)
-        # This always writes a .csv file to csv_path, even if it's empty.
-        if assemble_chunks(chunks, headings, csv_path,
-                           keep_chunks: true, create_empty: create_empty)
-          # Cleanup: Flush the chunks directory if it's empty
-          if Dir.exist?(chunks_dir) && Dir.entries(chunks_dir).length <= 2
-            FileUtils.rmdir chunks_dir
-          end
-          [csv_path, count]
-        else
-          [nil, 0]              # hmph.  flush the 'assemble' parameter???
+    # Create a directory csv_path.chunks to hold the chunks
+    chunks_dir = csv_path + ".chunks"
+    begin
+      # count = total number of rows
+      chunks, count = get_query_chunks(query, headings, chunksize, csv_path, skipping)
+      # This always writes a .csv file to csv_path, even if it's empty.
+      if assemble_chunks(chunks, headings, csv_path,
+                         keep_chunks: true, create_empty: create_empty)
+        # Cleanup: Flush the chunks directory if it's empty
+        if Dir.exist?(chunks_dir) && Dir.entries(chunks_dir).length <= 2
+          FileUtils.rmdir chunks_dir
         end
-      rescue => e
-        STDERR.puts "** Failed to generate #{csv_path}"
-        STDERR.puts "** Exception: #{e}\n#{e.message}"
-        STDERR.puts e.backtrace.join("\n")
-        [nil, -1]
+        [csv_path, count]
+      else
+        [nil, 0]              # hmph.  flush the 'assemble' parameter???
       end
+    rescue => e
+      STDERR.puts "** Failed to generate #{csv_path}"
+      STDERR.puts "** Exception: #{e}\n#{e.message}"
+      STDERR.puts e.backtrace.join("\n")
+      [nil, -1]
     end
   end
 
@@ -119,39 +111,34 @@ class Paginator
       basename = (chunksize == nil ? "#{skip}" : "#{skip}_#{chunksize}")
       chunks_dir = csv_path + ".chunks"
       chunk_path = File.join(chunks_dir, "#{basename}.csv")
-      if File.exist?(chunk_path)
-        chunks.push(chunk_path) if File.size(chunk_path) > 0
-        skip += limit
-      else
-        tick += 1
-        STDERR.puts "#{tick} #{chunk_path}" if tick % 25 == 0
-        FileUtils.mkdir_p File.dirname(chunk_path)
-        #STDERR.puts("Getting #{chunk_path} #{skip} #{limit}")
-        whole_query = query
-        whole_query = whole_query + " SKIP #{skip}" if skipping
-        whole_query = whole_query + " LIMIT #{limit}"
-        # This might raise an exception, in which case the whole thing aborts.
-        # Retry logic is now embedded in run_query.
-        result = @graph.run_query(whole_query)
-        sleep(1) # ***** Throttle requests to decrease server load *****
+      tick += 1
+      STDERR.puts "#{tick} #{chunk_path}" if tick % 25 == 0
+      FileUtils.mkdir_p File.dirname(chunk_path)
+      #STDERR.puts("Getting #{chunk_path} #{skip} #{limit}")
+      whole_query = query
+      whole_query = whole_query + " SKIP #{skip}" if skipping
+      whole_query = whole_query + " LIMIT #{limit}"
+      # This might raise an exception, in which case the whole thing aborts.
+      # Retry logic is now embedded in run_query.
+      result = @graph.run_query(whole_query)
+      sleep(1) # ***** Throttle requests to decrease server load *****
 
-        got = result["data"].length
-        # The skip == 0 test is a kludge that fixes a bug where the
-        # header row was being omitted in some cases ???
-        #STDERR.puts(result) if got == 0
-        if got > 0
-          emit_csv(result, headings, chunk_path)
-          chunks.push(chunk_path)
-        end
-        #STDERR.puts("Got #{got} limit #{limit} skip #{skip} for #{chunk_path}")
-        if got < limit
-          #STDERR.puts("Chunk size #{got} < #{limit} for #{chunk_path}")
-        end
-        total += got
-        break if got < limit
-        #STDERR.puts("Continuing #{got} limit #{limit} skip #{skip} for #{chunk_path}")
-        skip += got
+      got = result["data"].length
+      # The skip == 0 test is a kludge that fixes a bug where the
+      # header row was being omitted in some cases ???
+      #STDERR.puts(result) if got == 0
+      if got > 0
+        emit_csv(result, headings, chunk_path)
+        chunks.push(chunk_path)
       end
+      #STDERR.puts("Got #{got} limit #{limit} skip #{skip} for #{chunk_path}")
+      if got < limit
+        #STDERR.puts("Chunk size #{got} < #{limit} for #{chunk_path}")
+      end
+      total += got
+      break if got < limit
+      #STDERR.puts("Continuing #{got} limit #{limit} skip #{skip} for #{chunk_path}")
+      skip += got
       break if chunksize == nil
     end
     [chunks, total]
@@ -170,7 +157,7 @@ class Paginator
     # Concatenate all the chunks together
     chunks_dir = csv_path + ".chunks"
     if chunks.size == 0
-      if create_empty 
+      if create_empty
         STDERR.puts("Creating empty #{csv_path}")
         raise "Shouldn't happen" if csv_path.include? "predicates"
         CSV.open(csv_path, "wb") do |csv|

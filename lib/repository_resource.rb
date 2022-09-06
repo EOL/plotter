@@ -56,16 +56,14 @@ class RepositoryResource < Resource
 
   def page_id_map_path
     path = workspace_path(relative_path("page_id_map.csv"))
-    unless File.exist?(path)
-      STDERR.puts "Writing page id map to #{path}"
-      @page_id_map = fetch_page_id_map
-      csv_out = CSV.open(path, "w:UTF-8")
-      csv_out << ["resource_pk", "page_id"]
-      @page_id_map.each do |node_id, page_id|
-        csv_out << [node_id, page_id.to_i]
-      end
-      csv_out.close
+    STDERR.puts "Writing page id map to #{path}"
+    @page_id_map = fetch_page_id_map
+    csv_out = CSV.open(path, "w:UTF-8")
+    csv_out << ["resource_pk", "page_id"]
+    @page_id_map.each do |node_id, page_id|
+      csv_out << [node_id, page_id.to_i]
     end
+    csv_out.close
     path
   end
 
@@ -122,7 +120,7 @@ class RepositoryResource < Resource
       skip += limit
       STDERR.puts "Got chunk #{skip}, going for another"
     end
-    STDERR.puts "Got #{page_id_map.size} page ids" 
+    STDERR.puts "Got #{page_id_map.size} page ids"
     page_id_map
   end
 

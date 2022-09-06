@@ -7,7 +7,7 @@
 #   terms.csv    - one row per Term node
 #   inferred.csv - one row per inferred_trait relationship
 #
-# This script run as a rake command (see rakelib/dump_traits.rake).  The 
+# This script run as a rake command (see rakelib/dump_traits.rake).  The
 #     graphdb is accessed directly, using neography.
 #
 # See documentation in doc/trait-bank-dumps.md.
@@ -91,7 +91,7 @@ class TraitsDumper
              emit_traits(clade),
              emit_metadatas(clade)]
     if not paths.include?(nil)
-      write_zip(paths, dest) 
+      write_zip(paths, dest)
     end
     puts `date`
   end
@@ -160,7 +160,7 @@ class TraitsDumper
 
   def emit_terms
 
-    # Many Term nodes have 'uri' properties that are not URIs.  Would it 
+    # Many Term nodes have 'uri' properties that are not URIs.  Would it
     # be useful to filter those out?  It's about 2% of the nodes.
 
     # I'm not sure where there exist multiple Term nodes for a single URI?
@@ -193,11 +193,6 @@ class TraitsDumper
   def emit_pages(root)
     filename = "pages.csv"
     csv_path = File.join(@tempdir, filename)
-    if File.exist?(csv_path)
-      STDERR.puts "reusing previously created #{csv_path}"
-      return csv_path
-    end
-
     pages_query =
      "MATCH (page:Page) #{transitive_closure_part(root)}
       #{page_filter}
@@ -213,10 +208,6 @@ class TraitsDumper
   def emit_traits(root)
     filename = "traits.csv"
     csv_path = File.join(@tempdir, filename)
-    if File.exist?(csv_path)
-      STDERR.puts "reusing previously created #{csv_path}"
-      return csv_path
-    end
     # Matching the keys used in the tarball if possible (even when inconsistent)
     # E.g. should "predicate" be "predicate_uri" ?
     traits_keys = ["eol_pk", "page_id", "resource_pk", "resource_id",
@@ -250,8 +241,8 @@ class TraitsDumper
         RETURN t.eol_pk, page.page_id, r.resource_pk, r.resource_id,
                t.source, t.scientific_name, predicate.uri,
                obj_page.page_id, obj.uri,
-               t.normal_measurement, normal_units.uri, t.normal_units, 
-               t.measurement, units.uri, t.units, 
+               t.normal_measurement, normal_units.uri, t.normal_units,
+               t.measurement, units.uri, t.units,
                t.literal,
                t.method, t.remarks, t.sample_size, t.name_en,
                t.citation"
@@ -308,10 +299,6 @@ class TraitsDumper
   def emit_metadatas(root)
     filename = "metadata.csv"
     csv_path = File.join(@tempdir, filename)
-    if File.exist?(csv_path)
-      STDERR.puts "reusing previously created #{csv_path}"
-      return csv_path
-    end
     metadata_keys = ["eol_pk", "trait_eol_pk", "predicate", "value_uri",
                      "measurement", "units_uri", "literal"]
     predicates = list_metadata_predicates
@@ -322,7 +309,7 @@ class TraitsDumper
       predicate = predicates[i]
       next if is_attack?(predicate)
       STDERR.puts "Metadatas: Predicate #{i} = #{predicate}" if i % 25 == 0
-      metadata_query = 
+      metadata_query =
         "MATCH (m:MetaData)<-[:metadata]-(t:Trait),
               (t)<-[:trait]-(page:Page)
               #{transitive_closure_part(root)}
@@ -361,12 +348,8 @@ class TraitsDumper
   def emit_inferred(root)
     filename = "inferred.csv"
     csv_path = File.join(@tempdir, filename)
-    if File.exist?(csv_path)
-      STDERR.puts "reusing previously created #{csv_path}"
-      return csv_path
-    end
     inferred_keys = ["page_id", "inferred_trait"]
-    inferred_query = 
+    inferred_query =
        "MATCH (page:Page)-[:inferred_trait]->(trait:Trait)
               #{transitive_closure_part(root)}
         RETURN page.page_id AS page_id, trait.eol_pk AS trait"
